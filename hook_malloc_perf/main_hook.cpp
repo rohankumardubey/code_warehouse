@@ -55,8 +55,9 @@ struct MemTracker mem_tracker;
 std::vector<void*> values;
 
 void* operator new(size_t size) {
-  mem_tracker.sum += size;
-  void* p = tc_malloc(size);
+  size_t new_size = tc_nallocx(size, 0);
+  mem_tracker.sum += new_size;
+  void* p = tc_malloc(new_size);
   return p;
 }
 
@@ -65,13 +66,14 @@ void operator delete(void* p) noexcept {
 }
 
 void operator delete(void* p, size_t size) noexcept {
-  mem_tracker.sum -= size;
+  size_t new_size = tc_nallocx(size, 0);
+  mem_tracker.sum -= new_size;
   tc_delete_sized(p, size);
 }
 
 extern "C" {
   void* my_alloc(size_t size) {
-    size_t new_size = nallocx(size, 0);
+    size_t new_size = tc_nallocx(size, 0);
     mem_tracker.sum += new_size;
     void* p = tc_malloc(size);
     return p;
