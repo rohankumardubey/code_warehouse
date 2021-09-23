@@ -4,6 +4,7 @@
 #include <gperftools/tcmalloc.h>
 #include <gperftools/nallocx.h>
 #include <unistd.h>
+#include <new>
 
 #define ALIAS(tc_fn)   __attribute__ ((alias (#tc_fn), used))
 
@@ -13,20 +14,58 @@ struct MemTracker {
 
 struct MemTracker mem_tracker;
 
+// auto* c1 = new C1();
 void* operator new(size_t size) {
-  void* p = tc_malloc(size);
-  std::cout<<"NEW: "<<p<<":"<<size<<":"<<tc_nallocx(size, 0)<<std::endl;
+  void* p = tc_new(size);
+  std::cout<<"NEW_WITH_SIZE_THROW: "<<p<<":"<<size<<":"<<tc_nallocx(size, 0)<<std::endl;
   return p;
 }
 
-void operator delete(void* p) noexcept {
-  std::cout<<"FREE: "<<p<<":"<<tc_malloc_size(p)<<std::endl;
-  tc_free(p);
+// auto* c2 = new (std::nothrow) C1();
+void* operator new(size_t size, const std::nothrow_t& nt) noexcept {
+  void* p = tc_new_nothrow(size, nt);
+  std::cout<<"NEW_WITH_SIZE_NO_THROW: "<<p<<":"<<size<<":"<<tc_nallocx(size, 0)<<std::endl;
+  return p;
 }
 
+// delete c1
+// > c++11
 void operator delete(void* p, size_t size) noexcept {
-  std::cout<<"FREE_SIZE: "<<p<<":"<<size<<std::endl;
+  std::cout<<"FREE_WITH_SIZE_NO_THROW: "<<p<<":"<<size<<":"<<tc_nallocx(size, 0)<<std::endl;
   tc_delete_sized(p, size);
+}
+
+// c++11
+void operator delete(void* p) noexcept {
+  std::cout<<"FREE_NO_THROW: "<<p<<":"<<tc_malloc_size(p)<<std::endl;
+  tc_delete(p);
+}
+
+void operator delete(void* p, const std::nothrow_t& nt) noexcept {
+  std::cout<<"FREE_NO_THROW_2: "<<p<<":"<<tc_malloc_size(p)<<std::endl;
+  tc_delete_nothrow(p, nt);
+}
+
+void* operator new[](size_t size) {
+  void* p = tc_newarray(size);
+  std::cout<<"NEW_ARRAY_WITH_SIZE_THROW: "<<p<<":"<<size<<":"<<tc_nallocx(size, 0)<<std::endl;
+  return p;
+}
+
+void* operator new[](size_t size, const std::nothrow_t& nt) noexcept {
+  void* p = tc_newarray_nothrow(size, nt);
+  std::cout<<"NEW_ARRAY_WITH_SIZE_NOT_THROW: "<<p<<":"<<size<<":"<<tc_nallocx(size, 0)<<std::endl;
+  return p;
+}
+
+void operator delete[](void* p) noexcept {
+  std::cout<<"FREE_ARRAY_NO_THROW: "<<p<<":"<<tc_malloc_size(p)<<std::endl;
+  tc_deletearray(p);
+}
+
+void operator delete[](void* p, size_t size) noexcept {
+  std::cout<<"FREE_ARRAY_WITH_SIZE_NO_THROW: "<<p<<":"<<size<<":"<<tc_malloc_size(p)<<std::endl;
+  tc_deletearray_sized(p, size);
 }
 
 extern "C" {
@@ -60,11 +99,29 @@ private:
 };
 
 int main() {
-  std::cout<<"====================================="<<std::endl;
-  std::cout<<"START 1"<<std::endl;
+  char* buf = (char*)malloc(1024);
+
+  std::cout<<"================New With Exception================"<<std::endl;
   auto* c1 = new C1();
-  std::cout<<"START 2"<<std::endl;
   delete c1;
+
+  std::cout<<"================New Without Exception================"<<std::endl;
+  auto* c2 = new (std::nothrow) C1();
+  delete c2;
+
+  std::cout<<"================New With Exception Align================"<<std::endl;
+  auto* c3 = new (std::align_val_t{16}) C1();
+  delete c3;
+
+  std::cout<<"================New Array With Exception================"<<std::endl;
+  auto* c4 = new C1[5];
+  delete[] c4;
+
+  std::cout<<"================New Array Without Exception================"<<std::endl;
+  auto* c5 = new (std::nothrow) C1[5];
+  delete[] c5;
+
+  /*
   std::cout<<"START 3"<<std::endl;
   std::cout<<"T1:"<<mem_tracker.sum<<std::endl;
   void* c2 = malloc(10);
@@ -73,4 +130,5 @@ int main() {
   free(c2);
   std::cout<<"T3:"<<mem_tracker.sum<<std::endl;
   auto* c3 = new C1();
+  */
 }
