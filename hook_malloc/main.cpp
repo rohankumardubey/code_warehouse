@@ -5,6 +5,8 @@
 #include <gperftools/nallocx.h>
 #include <unistd.h>
 #include <new>
+#include <memory>
+#include <vector>
 
 #define ALIAS(tc_fn)   __attribute__ ((alias (#tc_fn), used))
 
@@ -183,7 +185,15 @@ int main() {
   free(c9);
   std::cout<<"T4:"<<mem_tracker.sum<<std::endl;
 
-  /*
-  auto* c3 = new C1();
-  */
+  std::cout<<"================std::make_shared================"<<std::endl;
+  auto c10 = std::make_shared<C1>();
+  auto c11 = c10;
+  c11.reset();
+  c10.reset();
+
+  std::cout<<"================std::vector================"<<std::endl;
+  std::vector<int> c12;
+  for (int i = 0; i < 10; i++) {
+    c12.emplace_back(i);
+  }
 }

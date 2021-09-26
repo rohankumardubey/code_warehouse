@@ -1,4 +1,4 @@
-g++ main.cpp -ltcmalloc -lpthread
+g++ main.cpp -ltcmalloc -lpthread -fsized-deallocation
 
 ```
 vim src/libc_override_gcc_and_weak.h
